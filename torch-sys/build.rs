@@ -231,15 +231,23 @@ impl SystemInfo {
                 None => anyhow::bail!("no cxx11 abi returned by python {output:?}"),
             }
         } else {
-            let libtorch = Self::prepare_libtorch_dir(os)?;
+            let libtorch_dir = env::var("LIBTORCH").unwrap_or_else(|_| {
+                let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+                let libtorch_path = Path::new("E:\\kronos\\libtorch-0.18.1").to_path_buf();
+                
+                if !libtorch_path.exists() {
+                    panic!("Libtorch directory not found at {}", libtorch_path.display());
+                }
+                
+                libtorch_path.to_string_lossy().into_owned()
+            });
             let includes = env_var_rerun("LIBTORCH_INCLUDE")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| libtorch.clone());
+                .unwrap_or_else(|_| PathBuf::from(libtorch_dir));
             let lib = env_var_rerun("LIBTORCH_LIB")
                 .map(PathBuf::from)
-                .unwrap_or_else(|_| libtorch.clone());
-            let mut version_file = libtorch;
-            version_file.push("build-version");
+                .unwrap_or_else(|_| PathBuf::from(libtorch_dir));
+            let mut version_file = PathBuf::from(libtorch_dir).join("build-version");
             if version_file.exists() {
                 if let Ok(version) = std::fs::read_to_string(&version_file) {
                     version_check(&version)?
@@ -339,7 +347,7 @@ impl SystemInfo {
                         "cu118" => "%2Bcu118",
                         "cu121" => "%2Bcu121",
                         "cu124" => "%2Bcu124",
-                        _ => ""
+                        _ => "",
                     }),
             };
 
